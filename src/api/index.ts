@@ -1,117 +1,88 @@
 import debounce from 'awesome-debounce-promise';
-import { joinedPromise, timeoutPromise, JoinResult } from '@/utils/promise';
+import { timeoutPromise } from '@/utils/promise';
 import { decorate } from '@/utils/decorator';
 
-enum METHODS {
-  GET = 'get',
-  POST = 'post',
-  PUT = 'put'
+interface ApiConfig {
+  baseUrl: string;
+  headers?: Record<string, string | number>;
+  endpoints: (methods: {
+    get: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
+    post: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
+    put: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
+  }) => Record<string, <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>>;
 }
 
-interface ApiResponse extends Response {
-  data: any;
-}
-
-interface ApiRequest extends RequestInit {}
-
-interface RequestParams {
+interface ApiRequest {
   endpoint: string;
   data?: Record<string, any>;
   headers?: Record<string, string | number>;
 }
 
-interface ApiConfig {
-  baseUrl: string;
-  globalHeaders?: Headers;
-  endpoints: (methods: {
-    get: (request: RequestParams) => Promise<ApiResponse>;
-    post: (request: RequestParams) => Promise<ApiResponse>;
-    put: (request: RequestParams) => Promise<ApiResponse>;
-  }) => Record<string, () => Promise<ApiResponse>>;
+interface ApiResponse<T extends any> extends Response {
+  data: T;
 }
 
-const api = (config: ApiConfig) => {
-  const { baseUrl, globalHeaders, endpoints } = config;
-  const initialize = () => (method: string, params: RequestParams) => {
+const METHODS = {
+  GET: 'get',
+  POST: 'post',
+  PUT: 'put'
+};
+
+const api = (
+  config: ApiConfig
+): Record<string, <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>> => {
+  const initialize = () => (method: string, request: ApiRequest) => {
     /* Assemble full url */
-    let fullUrl = `${baseUrl}${params.endpoint}`;
+    let fullUrl = `${config.baseUrl}${request.endpoint}`;
     /* Serialize data to url on get methods */
-    if (method === METHODS.GET && params.data) {
-      const paramUrl = Object.entries(params.data)
+    if (method === METHODS.GET && request.data) {
+      const paramUrl = Object.entries(request.data)
         .map(([key, value]) => `${key}=${value}`)
         .join('&');
       fullUrl = `${fullUrl}?${paramUrl}`;
     }
     /* Assemble all header input */
-    const fullHeaders: HeadersInit = {
-      ...(globalHeaders || {}),
-      ...(params.headers || {}),
+    const fullHeaders = {
+      ...(config.headers || {}),
+      ...(request.headers || {}),
       'Content-Type': 'application/json'
     };
-    /* Assemble fetch api request */
-    const request: ApiRequest = {
+    return fetch(fullUrl, {
       method,
       headers: fullHeaders,
-      body: JSON.stringify(params.data)
-    };
-    return fetch(fullUrl, request);
+      body: JSON.stringify(request.data)
+    });
   };
 
   const _api = initialize();
 
-  const get = (request: RequestParams) =>
-    process(() => _api(METHODS.GET, request));
-  const post = (request: RequestParams) =>
-    process(() => _api(METHODS.POST, request));
-  const put = (request: RequestParams) =>
-    process(() => _api(METHODS.PUT, request));
+  const get = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.GET, request));
+  const post = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.POST, request));
+  const put = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.PUT, request));
 
   const methods = { get, post, put };
 
-  const process = (request: () => Promise<Response>): Promise<ApiResponse> => {
-    const call = request()
-      .then((response: Response) =>
-        joinedPromise(resolveResponse(response), response)
-      )
-      .then(
-        (result: JoinResult<Response>): ApiResponse =>
-          <ApiResponse>{
-            type: result.value.type,
-            status: result.value.status,
-            ok: result.value.ok,
-            headers: result.value?.headers?.map ?? {},
-            data: result.promiseValue
-          }
-      )
-      .then(extractCookies)
-      .catch((_ignored) => <ApiResponse>{ ok: false, data: null });
-
-    return <Promise<ApiResponse>>new Promise((resolve) => {
-      timeoutPromise(call)
-        .then((response: ApiResponse) => resolve(response))
-        .catch((_ignored) => resolve(<ApiResponse>{ ok: false, data: null }));
-    }).catch(console.log);
-  };
-
-  /* On void function case, they will return no data hence response.json() will fail */
-  const resolveResponse = (response: Response): Promise<ApiResponse> =>
-    new Promise((resolve, reject) => {
-      response
-        .json()
-        .then((data: any) => resolve(data))
-        .catch(() => reject(new Error()));
-    });
-
-  /* todo, things like session, remember-me */
-  const extractCookies = (response: ApiResponse) => {
+  async function call<T extends any>(
+    promiseCallback: () => Promise<Response>
+  ): Promise<ApiResponse<T>> {
     try {
-    } catch (ignored) {}
-    return response;
-  };
+      const response = await timeoutPromise(promiseCallback());
+      const data = await response.json();
+      return <ApiResponse<T>>{
+        type: response.type,
+        status: response.status,
+        ok: response.ok,
+        headers: response.headers || {},
+        data
+      };
+    } catch (e) {
+      console.log(e);
+      return <ApiResponse<T>>{ ok: false, data: null };
+    }
+  }
 
-  return decorate(endpoints(methods), (fn: () => Promise<ApiResponse>) =>
-    debounce(fn, 500)
-  );
+  const decorator = (fn: () => Promise<ApiResponse<any>>) => debounce(fn, 500);
+  return decorate(config.endpoints(methods), decorator);
 };
 
 export default api;

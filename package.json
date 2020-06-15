@@ -1,9 +1,11 @@
 {
   "name": "react-native-basic-api",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "keywords": [
+    "react",
     "react-native",
-    "api"
+    "api",
+    "fetch"
   ],
   "dependencies": {
     "awesome-debounce-promise": "^2.1.0"

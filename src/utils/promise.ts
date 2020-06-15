@@ -1,19 +1,3 @@
-export interface JoinResult<T extends any> {
-  promiseValue: T;
-  value: any;
-}
-
-export const joinedPromise = <T extends any>(
-  promise: Promise<T>,
-  value: any
-): Promise<JoinResult<T>> => {
-  return new Promise((resolve, reject) =>
-    promise
-      .then((promiseValue) => resolve({ promiseValue, value }))
-      .catch(reject)
-  );
-};
-
 export const timeoutPromise = function <T extends any>(
   promise: Promise<T>,
   ms = 10000
