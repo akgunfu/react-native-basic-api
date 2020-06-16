@@ -1,2 +1,2 @@
-import api from '@/api';
+import api from './src/api';
 export default api;
