@@ -34,7 +34,7 @@ interface ApiResponse<T extends any> extends Response {
   data: T;
 }
 
-const METHODS = {
+const METHOD = {
   GET: 'get',
   POST: 'post',
   PUT: 'put'
@@ -47,7 +47,7 @@ const api = (
     /* Assemble full url */
     let fullUrl = `${config.baseUrl}${request.endpoint}`;
     /* Serialize data to url on get methods */
-    if (method === METHODS.GET && request.data) {
+    if (method === METHOD.GET && request.data) {
       const paramUrl = Object.entries(request.data)
         .map(([key, value]) => `${key}=${value}`)
         .join('&');
@@ -62,7 +62,7 @@ const api = (
     return fetch(fullUrl, {
       method,
       headers: fullHeaders,
-      body: JSON.stringify(request.data)
+      body: method === METHOD.GET ? undefined : JSON.stringify(request.data)
     });
   };
 
@@ -72,17 +72,17 @@ const api = (
     endpoint: string,
     data?: Record<string, any>,
     headers?: Record<string, any>
-  ) => call<T>(() => _api(METHODS.GET, { endpoint, data, headers }));
+  ) => call<T>(() => _api(METHOD.GET, { endpoint, data, headers }));
   const post = <T extends any>(
     endpoint: string,
     data?: Record<string, any>,
     headers?: Record<string, any>
-  ) => call<T>(() => _api(METHODS.POST, { endpoint, data, headers }));
+  ) => call<T>(() => _api(METHOD.POST, { endpoint, data, headers }));
   const put = <T extends any>(
     endpoint: string,
     data?: Record<string, any>,
     headers?: Record<string, any>
-  ) => call<T>(() => _api(METHODS.PUT, { endpoint, data, headers }));
+  ) => call<T>(() => _api(METHOD.PUT, { endpoint, data, headers }));
 
   const methods = { get, post, put };
 
