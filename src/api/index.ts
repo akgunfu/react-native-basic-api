@@ -1,21 +1,33 @@
 import debounce from 'awesome-debounce-promise';
-import { timeoutPromise } from '@/utils/promise';
-import { decorate } from '@/utils/decorator';
+import { timeoutPromise } from '../utils/promise';
+import { decorate } from '../utils/decorator';
 
 interface ApiConfig {
   baseUrl: string;
   headers?: Record<string, string | number>;
   endpoints: (methods: {
-    get: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
-    post: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
-    put: <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>;
+    get: <T extends any>(
+      endpoint: string,
+      data?: Record<string, any>,
+      headers?: Record<string, any>
+    ) => Promise<ApiResponse<T>>;
+    post: <T extends any>(
+      endpoint: string,
+      data?: Record<string, any>,
+      headers?: Record<string, any>
+    ) => Promise<ApiResponse<T>>;
+    put: <T extends any>(
+      endpoint: string,
+      data?: Record<string, any>,
+      headers?: Record<string, any>
+    ) => Promise<ApiResponse<T>>;
   }) => Record<string, <T extends any>(request: ApiRequest) => Promise<ApiResponse<T>>>;
 }
 
 interface ApiRequest {
   endpoint: string;
   data?: Record<string, any>;
-  headers?: Record<string, string | number>;
+  headers?: Record<string, any>;
 }
 
 interface ApiResponse<T extends any> extends Response {
@@ -56,9 +68,21 @@ const api = (
 
   const _api = initialize();
 
-  const get = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.GET, request));
-  const post = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.POST, request));
-  const put = <T extends any>(request: ApiRequest) => call<T>(() => _api(METHODS.PUT, request));
+  const get = <T extends any>(
+    endpoint: string,
+    data?: Record<string, any>,
+    headers?: Record<string, any>
+  ) => call<T>(() => _api(METHODS.GET, { endpoint, data, headers }));
+  const post = <T extends any>(
+    endpoint: string,
+    data?: Record<string, any>,
+    headers?: Record<string, any>
+  ) => call<T>(() => _api(METHODS.POST, { endpoint, data, headers }));
+  const put = <T extends any>(
+    endpoint: string,
+    data?: Record<string, any>,
+    headers?: Record<string, any>
+  ) => call<T>(() => _api(METHODS.PUT, { endpoint, data, headers }));
 
   const methods = { get, post, put };
 
