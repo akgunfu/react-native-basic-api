@@ -1,6 +1,10 @@
 {
   "name": "react-native-basic-api",
   "version": "0.1.4",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akgunfu/react-native-basic-api.git"
+  },
   "keywords": [
     "react",
     "react-native",
